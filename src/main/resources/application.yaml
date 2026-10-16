@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: springboot-rabbitmq
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    publisher-confirm-type: correlated # 1. Pide recibos de que llegó al Exchange
+    publisher-returns: true            # 2. Pide recibos si llegó al Exchange pero no encontró ninguna Cola
+    listener:
+      simple:
+        prefetch: 1                  # <--- LA MAGIA DE QoS (basicQos = 1)
+        acknowledge-mode: manual
+        retry:
+          enabled: true              # 1. Encendemos el motor de reintentos
+          max-attempts: 3            # 2. Máximo de intentos antes de rendirse (1 original + 2 reintentos)
+          initial-interval: 2000ms   # 3. Espera 2 segundos antes del primer reintento
+          multiplier: 2.0            # 4. Multiplicador (el siguiente intento esperará 4 segs, luego 8 segs...)
+          max-interval: 10000ms      # 5. Límite máximo de espera entre intentos
