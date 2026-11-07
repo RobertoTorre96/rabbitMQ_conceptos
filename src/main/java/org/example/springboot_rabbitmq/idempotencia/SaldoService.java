@@ -28,17 +28,27 @@ public class SaldoService {
         }
     }
 
-    // 1) INGENUO: suma siempre, no registra nada
-    public void sumarIngenuo(int monto) {
-        int filas = cuentaRepository.sumarSaldo(CUENTA_ID, monto);
-        if (filas == 0) throw new IllegalStateException("No existe la cuenta " + CUENTA_ID);
+    private void log(String mensaje) {
+        System.out.println("      [DB] " + mensaje);
     }
 
-    // 2) SIN TRANSACCION: cada llamada al repository se confirma sola.
+    // 1) INGENUO: suma siempre, no registra nada
+    public void sumarIngenuo(int monto) {
+        int antes = getSaldo();
+        int filas = cuentaRepository.sumarSaldo(CUENTA_ID, monto);
+        if (filas == 0) throw new IllegalStateException("No existe la cuenta " + CUENTA_ID);
+        log("UPDATE cuenta: saldo " + antes + " -> " + (antes + monto));
+    }
+
+    // 2) SIN TRANSACCION: cada llamada al repository se confirma sola (autocommit).
     //    Orden peligroso: primero registra el ID, despues aplica el efecto.
     public boolean sumarUnaVezSinTx(String messageId, int monto, boolean fallar) {
         if (!registrarId(messageId)) return false;
-        if (fallar) throw new RuntimeException("Caida simulada entre INSERT y UPDATE");
+        if (fallar) {
+            log("FALLO SIMULADO entre el INSERT y el UPDATE.");
+            log("Modo SIN transaccion: el INSERT del ID YA QUEDO CONFIRMADO. El saldo NO se sumo.");
+            throw new RuntimeException("Caida simulada entre INSERT y UPDATE");
+        }
         sumarIngenuo(monto);
         return true;
     }
@@ -47,13 +57,23 @@ public class SaldoService {
     @Transactional
     public boolean sumarUnaVezConTx(String messageId, int monto, boolean fallar) {
         if (!registrarId(messageId)) return false;
-        if (fallar) throw new RuntimeException("Caida simulada entre INSERT y UPDATE");
+        if (fallar) {
+            log("FALLO SIMULADO entre el INSERT y el UPDATE.");
+            log("Modo CON transaccion: Spring hara ROLLBACK, el INSERT del ID se DESHACE.");
+            throw new RuntimeException("Caida simulada entre INSERT y UPDATE");
+        }
         sumarIngenuo(monto);
         return true;
     }
 
     private boolean registrarId(String messageId) {
-        return mensajeRepository.insertarSiNoExiste(messageId) == 1;
+        int filas = mensajeRepository.insertarSiNoExiste(messageId);
+        if (filas == 1) {
+            log("INSERT mensajes_procesados('" + messageId + "') -> OK (ID nuevo)");
+        } else {
+            log("INSERT mensajes_procesados('" + messageId + "') -> RECHAZADO (el ID ya existia = DUPLICADO)");
+        }
+        return filas == 1;
     }
 
     public int getSaldo() {

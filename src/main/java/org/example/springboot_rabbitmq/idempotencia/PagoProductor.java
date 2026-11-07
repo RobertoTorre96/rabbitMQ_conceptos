@@ -26,6 +26,9 @@ public class PagoProductor {
                         @RequestParam(defaultValue = "false") boolean simularCaida,
                         @RequestParam(defaultValue = "false") boolean fallarEnMedio) {
 
+        System.out.println("\n[PRODUCTOR] Enviando pago messageId=" + messageId + " monto=" + monto
+                + " simularCaida=" + simularCaida + " fallarEnMedio=" + fallarEnMedio);
+
         PagoEvento evento = new PagoEvento(monto, simularCaida, fallarEnMedio);
 
         rabbitTemplate.convertAndSend(
@@ -37,14 +40,16 @@ public class PagoProductor {
                     return mensaje;
                 });
 
-        return "Pago enviado con messageId=" + messageId;
+        return "Pago enviado con messageId=" + messageId + " (mira la consola)";
     }
 
     @GetMapping("/saldo")
     public String saldo() {
-        return "Saldo: " + saldoService.getSaldo()
+        String respuesta = "Saldo: " + saldoService.getSaldo()
                 + " | modo: " + saldoService.getModo()
                 + " | IDs registrados: " + saldoService.getProcesados();
+        System.out.println("\n[ESTADO] " + respuesta);
+        return respuesta;
     }
 
     @GetMapping("/modo")
@@ -53,12 +58,14 @@ public class PagoProductor {
             return "Valores validos: ingenuo | sin-tx | con-tx";
         }
         saldoService.setModo(valor);
+        System.out.println("\n########## MODO CAMBIADO A: " + valor.toUpperCase() + " ##########");
         return "Modo = " + valor;
     }
 
     @GetMapping("/reset")
     public String reset() {
         saldoService.reset();
+        System.out.println("\n---------- RESET: saldo = 0 y tabla de IDs vacia ----------");
         return "Saldo en 0 y tabla de IDs vaciada";
     }
 }
